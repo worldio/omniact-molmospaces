@@ -1,0 +1,285 @@
+# Executable Franka DROID configuration for EmbodimentSpec schema version 1.
+# Deterministic and randomized visual construction match the legacy implementation.
+
+schema_version: 1
+embodiment_id: franka_droid.single.fixed
+embodiment_version: "20260127-spec1"
+
+robot_config:
+  namespace: robot_0/
+  model:
+    source: builtin
+    resource_key: franka_droid
+    resource_version: "20260127"
+    root_path: null
+    mjcf_path: model.xml
+    model_root_body: {name: fr3_link0, absolute: false}
+    pre_namespaced: false
+    prefix_names: true
+
+  initial_qpos:
+    arm: [0.0, -0.7853, 0.0, -2.35619, 0.0, 1.57079, 0.0]
+    gripper: [0.00296, 0.00296]
+  initial_qpos_noise:
+    arm: [0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175]
+
+  default_control_profile: default
+  control_profiles:
+    default:
+      controller_bindings:
+        arm: arm_position
+        gripper: gripper_position
+      actuator_overrides: {}
+
+  gravity_compensation:
+    enabled: true
+    root_body: {name: fr3_link0, absolute: false}
+    include_root: false
+    include_descendants: true
+
+  action_noise:
+    enabled: true
+    target_arm_groups: [arm]
+    target_base_group: null
+    action_scale_factor: 0.1
+    rotation_noise_scale: 0.1
+    max_tcp_position_noise: 0.02
+    max_tcp_rotation_noise: 0.1
+    base_action_scale_factor: 0.1
+    max_base_position_noise: 0.02
+    max_base_rotation_noise: 0.05
+
+  placement:
+    reset_repositionable: true
+    runtime_mobility: fixed
+    footprint_xy: [0.5, 0.5]
+    platform_size_xyz: [0.5, 0.5, 0.58]
+    forward_offset: 0.0
+    forward_offset_step: 0.02
+
+robot:
+  model_operations:
+    - kind: add_texture
+      scope: scene
+      name: {name: robot_base_texture, absolute: false}
+      texture_type: cube
+      file: assets/base_textures/DarkWood2.png
+      randomized_files:
+        - assets/base_textures/CrossHatchWood.png
+        - assets/base_textures/DarkWood2.png
+        - assets/base_textures/DarkWoodFloors.png
+        - assets/base_textures/DarkWoodPlanks.png
+        - assets/base_textures/DarkWoodSmooth.png
+        - assets/base_textures/LightWoodCounters.png
+        - assets/base_textures/MediumWoodCounters.png
+        - assets/base_textures/MediumWoodSmooth.png
+        - assets/base_textures/TexturesCom_WoodFine0031_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0038_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0038_1_seamless_albedo_S_cropped.png
+        - assets/base_textures/TexturesCom_WoodFine0044_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0050_1_seamless_S.png
+        - assets/base_textures/TexturesCom_WoodFine0050_1_seamless_S_pale.png
+        - assets/base_textures/TexturesCom_WoodWhite.png
+        - assets/base_textures/TexturesCom_WornWood2_albedo_S.png
+        - assets/base_textures/WoodGrains1.png
+        - assets/base_textures/WoodGrains2.png
+        - assets/base_textures/WoodGrains4.png
+        - assets/base_textures/WoodGrains5.png
+        - assets/base_textures/WoodPlanksCleanseamlesWhitePainted.png
+        - assets/base_textures/WoodSlashhatch.png
+
+    - kind: add_material
+      scope: scene
+      name: {name: robot_base_material, absolute: false}
+      rgba: null
+      texture: {name: robot_base_texture, absolute: false}
+
+    - kind: add_mocap_body
+      scope: scene
+      name: {name: base, absolute: false}
+      parent_body: null
+      initial_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+
+    - kind: add_geom
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      name: {name: robot_base_geom, absolute: false}
+      geom_type: box
+      size: [0.25, 0.25, 0.29]
+      position: [0.0, 0.0, 0.29]
+      quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      material: {name: robot_base_material, absolute: false}
+      group: 0
+
+    - kind: speckle_rgba_materials
+      scope: scene
+      model_root_body: {name: fr3_link0, absolute: false}
+      probability: 0.7
+      texture_size: 256
+      noise_strength: 0.1
+      num_blobs: 80
+      blob_size_range: [5, 25]
+      blob_variation: 0.1
+      texture_name_suffix: _perturbed_tex
+      material_name_suffix: _perturbed
+
+    - kind: attach_model
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      child_root_body: {name: fr3_link0, absolute: false}
+      child_pose:
+        position: [0.0, 0.0, 0.58]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      apply_namespace: true
+
+  controllers:
+    arm_position:
+      kind: joint_position
+      move_group: arm
+    arm_relative_position:
+      kind: joint_relative_position
+      move_group: arm
+    gripper_position:
+      kind: joint_position
+      move_group: gripper
+
+  kinematics:
+    kind: damped_least_squares
+    online_backend: numpy
+    batch_backend: warp
+    optimizable_groups: [arm]
+    max_iterations: 50
+    convergence_tolerance: 0.001
+    success_tolerance: 0.0005
+    damping: 1.0e-12
+    integration_step: 1.0
+    online_max_iterations: 1000
+    online_success_tolerance: 0.0001
+
+  sensors:
+    - kind: frame_pose
+      uuid: tcp_pose
+      frame:
+        kind: site
+        name: {name: gripper/grasp_site, absolute: false}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+
+robot_view:
+  base_group: base
+  move_groups:
+    base:
+      kind: mocap_base
+      role: base
+      side: center
+      body: {name: base, absolute: false}
+      runtime_mobile: false
+
+    arm:
+      kind: joint
+      role: arm
+      side: center
+      parent_group: base
+      root_body: {name: fr3_link0, absolute: false}
+      joint_names:
+        - {name: fr3_joint1, absolute: false}
+        - {name: fr3_joint2, absolute: false}
+        - {name: fr3_joint3, absolute: false}
+        - {name: fr3_joint4, absolute: false}
+        - {name: fr3_joint5, absolute: false}
+        - {name: fr3_joint6, absolute: false}
+        - {name: fr3_joint7, absolute: false}
+      actuator_names:
+        - {name: fr3_joint1, absolute: false}
+        - {name: fr3_joint2, absolute: false}
+        - {name: fr3_joint3, absolute: false}
+        - {name: fr3_joint4, absolute: false}
+        - {name: fr3_joint5, absolute: false}
+        - {name: fr3_joint6, absolute: false}
+        - {name: fr3_joint7, absolute: false}
+      leaf_frame:
+        kind: site
+        name: {name: gripper/grasp_site, absolute: false}
+
+    gripper:
+      kind: gripper
+      role: tool
+      side: center
+      parent_group: base
+      root_body: {name: gripper/base, absolute: false}
+      joint_names:
+        - {name: gripper/left_driver_joint, absolute: false}
+        - {name: gripper/right_driver_joint, absolute: false}
+      actuator_names:
+        - {name: gripper/fingers_actuator, absolute: false}
+      leaf_frame:
+        kind: site
+        name: {name: gripper/grasp_site, absolute: false}
+      open_command: [0.0]
+      closed_command: [255.0]
+      aperture:
+        kind: geom_distance
+        geom_a: {name: gripper/left_pad2, absolute: false}
+        geom_b: {name: gripper/right_pad2, absolute: false}
+        maximum_distance: 0.087
+        query_limit: 0.1
+
+  end_effectors:
+    primary:
+      arm_group: arm
+      tool_group: gripper
+      tcp_frame:
+        kind: site
+        name: {name: gripper/grasp_site, absolute: false}
+      grasp_frame:
+        kind: site
+        name: {name: gripper/grasp_site, absolute: false}
+      grasp_profile_id: droid_robotiq_2f85_v1
+
+grasp_profiles:
+  droid_robotiq_2f85_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame:
+      kind: site
+      name: {name: gripper/grasp_site, absolute: false}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries:
+      - position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]
+    open_configuration: [0.0]
+    closed_configuration: [255.0]
+    contact_groups:
+      left_finger:
+        geom_names:
+          - {name: gripper/left_pad1, absolute: false}
+          - {name: gripper/left_pad2, absolute: false}
+        body_names: []
+        include_descendants_of: []
+        exclude_descendants_of: []
+      right_finger:
+        geom_names:
+          - {name: gripper/right_pad1, absolute: false}
+          - {name: gripper/right_pad2, absolute: false}
+        body_names: []
+        include_descendants_of: []
+        exclude_descendants_of: []
+      palm:
+        geom_names: []
+        body_names:
+          - {name: gripper/base, absolute: false}
+        include_descendants_of: []
+        exclude_descendants_of: []
+    grasp_rule:
+      required_contact_groups: [left_finger, right_finger]
+      forbidden_contact_groups: [palm]
+      minimum_contact_count: 1
+      aperture_threshold: 0.002
+    release_rule:
+      required_contact_groups: []
+      forbidden_contact_groups: []
+      minimum_contact_count: 0
+      aperture_threshold: null

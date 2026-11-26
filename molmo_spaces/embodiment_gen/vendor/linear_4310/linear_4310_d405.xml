@@ -1,0 +1,112 @@
+<!-- i2rt LINEAR_4310 gripper carrying the Intel RealSense D405 on its bracket -- the gripper
+     MolmoAct2's bimanual-YAM rig actually runs (allenai/molmoact2 pins GripperType.LINEAR_4310,
+     and the vendor's D405 extrinsic reprojects onto the real wrist streams at silhouette IoU
+     0.849 raw / 0.955 after a 6-DOF refine that moves only 4 mm / 1.1 deg -- unit mounting
+     tolerance). Geometry, inertials, the finger coupling and the `camera` extrinsic body are
+     VERBATIM from i2rt-robotics/i2rt @ 1276f63d (2026-08-07)
+     robot_models/gripper/linear_4310/linear_4310_d405.xml, MIT licensed (LICENSE.i2rt).
+
+     The camera body follows the vendor station README convention: +Z is the optical axis
+     (ROS/OpenCV; +X right, +Y down), canted 25 deg off the flange -Z, crossing the gripper
+     axis at the fingertips (z = -0.228). A MuJoCo camera looks along -Z with +Y up, so
+     consumers must compose the OpenCV->MuJoCo flip diag(1,-1,-1) -- make_gripper_catalog.py
+     derives the catalog wrist camera from this body and does exactly that.
+
+     Authored departures from the vendor file, and nothing else:
+     * joint7/joint8 renamed left_finger/right_finger (the catalog convention the shipped yam
+       gripper already uses); q=0 closed, positive opens, pad gap 0.06 mm at 0 and 93.96 mm
+       at 0.04695.
+     * a position servo, absent upstream (every i2rt model XML is kinematics-only): kp=5000 so
+       the 50 N forcerange clamp defines grip strength as the SDK's clog limit does on
+       hardware, kv=250 for a 0.2 m/s clamp-limited free-closing speed -- the same constants
+       the yam_jaw catalog entry applies as an actuator_override, carried in-file here because
+       a bundled model can simply be correct.
+     * armature 0.1 on the fingers: the reflected inertia of the leadscrew drive, absent from
+       the density-less CAD export, and what keeps the stiff servo discrete-time stable.
+     * grasp_site/tcp_site moved to group 4 so wrist renders do not show marker balls.
+     * the tip geoms are NAMED (the vendor leaves them bare): each finger is a leaf body, so the
+       node-spec terminal rule anchors on a named geom, exactly as it does for rum's fingertips.
+     * the tip MESHES are visual-only, with fitted box colliders (group 3) in their place: MuJoCo
+       collides a mesh's CONVEX HULL, and the hull of an L-shaped finger fills the whole corner,
+       several times the finger's real volume. Three SVD-fitted OBBs per finger (the tilted pad
+       split lengthwise in two so box corners stay within ~1.5 mm of the true face, plus the
+       carriage block) keep grasp contact where the visible finger is: closed pad-to-pad gap
+       measures -3.2 mm against the vendor's 0.06 mm spec (each face ~1.6 mm proud), versus
+       -7.8 mm for a single-box pad and the hulls' phantom corner volume.
+     * a `graft_mount` adapter body flips the vendor frame to the catalog's mount convention:
+       the vendor models the gripper hanging fingers-down (-z), the catalog grafts fingers along
+       flange +z (as robotiq and yam_jaw do), and the graft cancels the root body's own pose, so
+       the correction must live on a parent the graft treats as the root. The flip also clocks
+       the gripper -90 deg about the mount axis: the vendor's crank and linear arm models place
+       joint6's zero a quarter-turn apart (the linear gripper bolts to the flange 90 deg from the
+       crank), and this clocking makes a YAM-geometry arm reproduce the station model's
+       qpos-to-pose mapping -- including which arc the +-120 deg wrist limits cover -- exactly.
+     * visual meshes recolored from the CAD export's debug palette (green shell, blue tips and
+       bracket -- the vendor tree, station model included, ships no realistic colorway) to the
+       real unit's appearance: black printed parts, aluminum D405. Geometry untouched. -->
+<mujoco model="linear_4310_d405">
+  <compiler angle="radian" meshdir="assets"/>
+  <!-- the stiff servo's kv lives in actuator biasprm, which explicit Euler integrates unstably
+       (closes, then bounces back out); the generated embodiments this grafts into compile with
+       implicitfast anyway, so standalone loads must match -->
+  <option integrator="implicitfast"/>
+
+  <asset>
+    <mesh name="gripper" file="gripper.stl"/>
+    <mesh name="tip_left" file="tip_left.stl"/>
+    <mesh name="tip_right" file="tip_right.stl"/>
+    <mesh name="camera_bracket_for_D405_linear_4310_" file="d405/camera_bracket_for_D405_linear_4310_.stl"/>
+    <mesh name="Cable_holder" file="d405/Cable_holder.stl"/>
+    <mesh name="D405_with_depth_" file="d405/D405_with_depth_.stl"/>
+    <mesh name="Part_2" file="d405/Part_2.stl"/>
+  </asset>
+
+  <worldbody>
+    <body name="graft_mount" pos="0 0 0" quat="1 0 0 0">
+    <body name="gripper" pos="0 0 0" quat="0 1 -1 0">
+      <inertial pos="-3.57066e-05 0.000249371 -0.0293133" quat="0.667981 0.744113 -0.00433092 0.00882801" mass="0.553219" diaginertia="0.000409686 0.000369758 0.000324415"/>
+      <geom pos="-0.014 -0.0463995 0.0731" quat="1 0 0 0" type="mesh" rgba="0.15 0.15 0.15 1" mesh="gripper" contype="0" conaffinity="0"/>
+      <!-- Intel RealSense D405 on its bracket, rigidly fastened to the gripper. -->
+      <geom pos="-0.0237499999998 0.026 -0.0450000872386" quat="0.707105482511 0 -0.707108079859 0" type="mesh" rgba="0.15 0.15 0.15 1" mesh="camera_bracket_for_D405_linear_4310_" contype="0" conaffinity="0"/>
+      <geom pos="-0.0237499999998 0.026 -0.0450000872386" quat="0.707105482511 0 -0.707108079859 0" type="mesh" rgba="0.15 0.15 0.15 1" mesh="Cable_holder" contype="0" conaffinity="0"/>
+      <geom pos="-0.0704349787482 0.00899992343196 -0.0770059620768" quat="0.690344657757 -0.153049839965 -0.153047304185 0.690345219926" type="mesh" rgba="0.62 0.62 0.62 1" mesh="D405_with_depth_" contype="0" conaffinity="0"/>
+      <geom pos="-0.0704349787482 0.00899992343196 -0.0770059620768" quat="0.690344657757 -0.153049839965 -0.153047304185 0.690345219926" type="mesh" rgba="0.35 0.35 0.35 1" mesh="Part_2" contype="0" conaffinity="0"/>
+      <site name="tcp_site" pos="0 0 0" quat="0 1 0 0" size="0.005" rgba="1 0 0 1" group="4"/>
+      <site name="grasp_site" pos="0 0 -0.1347" quat="0 1 0 0" size="0.005" rgba="0 1 0 1" group="4"/>
+      <body name="tip_left" pos="-0.0239931 0.0445119 -0.0566829" quat="1 0 0 0">
+        <inertial pos="0.014584 -0.042586 -0.0228318" quat="0.657721 -0.57927 0.480962 -0.0229274" mass="0.069657" diaginertia="2.79862e-05 5.94605e-05 6.18569e-05"/>
+        <joint name="left_finger" pos="0 0 0" type="slide" axis="0 -1 0" range="0 0.04695" armature="0.1"/>
+        <geom name="tip_left" pos="0.00999321 -0.0914614 0.129783" quat="1 0 0 0" type="mesh" rgba="0.15 0.15 0.15 1" mesh="tip_left" contype="0" conaffinity="0"/>
+        <geom name="tip_left_pad_lo" type="box" pos="0.02400 -0.04713 -0.08177" quat="0.47611 0.51081 0.52690 -0.48453" size="0.00864 0.01316 0.00322" group="3"/>
+        <geom name="tip_left_pad_hi" type="box" pos="0.02405 -0.05110 -0.06562" quat="0.00185 0.00313 0.86728 -0.49780" size="0.02004 0.00971 0.00317" group="3"/>
+        <geom name="tip_left_arm" type="box" pos="0.01402 -0.03716 -0.01284" quat="0.51609 0.12112 -0.14661 0.83516" size="0.04680 0.03398 0.01867" group="3"/>
+      </body>
+      <body name="tip_right" pos="0.0239931 -0.0445119 -0.0566829" quat="1 0 0 0">
+        <inertial pos="-0.014584 0.042586 -0.0228318" quat="0.480962 0.0229274 0.657721 0.57927" mass="0.069657" diaginertia="2.79862e-05 5.94605e-05 6.18569e-05"/>
+        <joint name="right_finger" pos="0 0 0" type="slide" axis="0 1 0" range="0 0.04695" armature="0.1"/>
+        <geom name="tip_right" pos="-0.0379932 -0.00133753 0.129783" quat="1 0 0 0" type="mesh" rgba="0.15 0.15 0.15 1" mesh="tip_right" contype="0" conaffinity="0"/>
+        <geom name="tip_right_pad_lo" type="box" pos="-0.02454 0.04697 -0.08176" quat="0.46563 -0.50481 0.54089 0.48559" size="0.00878 0.01318 0.00326" group="3"/>
+        <geom name="tip_right_pad_hi" type="box" pos="-0.02410 0.05111 -0.06560" quat="-0.49793 0.86720 -0.00530 -0.00302" size="0.02004 0.00974 0.00316" group="3"/>
+        <geom name="tip_right_arm" type="box" pos="-0.01375 0.03739 -0.01306" quat="0.83949 -0.14451 -0.12545 -0.50857" size="0.04698 0.03386 0.01878" group="3"/>
+      </body>
+      <body name="camera" pos="-0.07043497875 -7.656797949e-08 -0.07700592902" quat="0.153050756 0.690344455 0.690345017 0.15304822">
+        <inertial pos="0 0 0" quat="1 0 0 0" mass="1e-09" diaginertia="4e-14 4e-14 4e-14"/>
+      </body>
+    </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <position name="gripper" joint="left_finger" ctrlrange="0 0.04695" kp="5000" kv="250" forcerange="-50 50"/>
+  </actuator>
+
+  <equality>
+    <joint joint1="left_finger" joint2="right_finger" polycoef="0 1 0 0 0"/>
+  </equality>
+
+  <contact>
+    <exclude body1="gripper" body2="tip_left"/>
+    <exclude body1="gripper" body2="tip_right"/>
+    <exclude body1="tip_left" body2="tip_right"/>
+  </contact>
+</mujoco>

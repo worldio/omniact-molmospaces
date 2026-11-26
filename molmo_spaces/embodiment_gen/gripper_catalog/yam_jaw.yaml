@@ -1,0 +1,213 @@
+name: yam_jaw
+resource_key: i2rt_yam
+resource_version: '20260223'
+mjcf: yam.xml
+graft_root: link_6
+drop_joints:
+- joint6
+keep_meshes:
+- model2__12
+- model2__13
+- model2__14
+- model2__15
+- model2__16
+- model2__17
+claims_flange_link: true
+move_group:
+  kind: gripper
+  role: tool
+  side: center
+  root_body:
+    name: gripper/link_6
+    absolute: false
+  joint_names:
+  - name: gripper/left_finger
+    absolute: false
+  - name: gripper/right_finger
+    absolute: false
+  actuator_names:
+  - name: gripper/gripper
+    absolute: false
+  leaf_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  open_command:
+  - 0.041
+  closed_command:
+  - 0.0
+  aperture:
+    kind: joint_expression
+    terms:
+    - joint:
+        name: gripper/left_finger
+        absolute: false
+      coefficient: 1.0
+      transform: identity
+    - joint:
+        name: gripper/right_finger
+        absolute: false
+      coefficient: -1.0
+      transform: identity
+    offset: 0.0
+    clamp:
+    - 0.0
+    - 0.075
+controller:
+  kind: joint_position
+  move_group: gripper
+grasp_profile_id: yam_parallel_jaw_v1
+grasp_profile:
+  profile_version: '1'
+  tool_type: parallel_jaw
+  grasp_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  approach_axis_in_grasp_frame:
+  - 0.0
+  - 0.0
+  - 1.0
+  closing_axis_in_grasp_frame:
+  - 0.0
+  - 1.0
+  - 0.0
+  symmetries:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_wxyz:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  open_configuration:
+  - 0.041
+  closed_configuration:
+  - 0.0
+  contact_groups:
+    left_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/link_left_finger
+        absolute: false
+      exclude_descendants_of: []
+    right_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/link_right_finger
+        absolute: false
+      exclude_descendants_of: []
+    palm:
+      geom_names: []
+      body_names:
+      - name: gripper/link_6
+        absolute: false
+      include_descendants_of: []
+      exclude_descendants_of: []
+  grasp_rule:
+    required_contact_groups:
+    - left_finger
+    - right_finger
+    forbidden_contact_groups:
+    - palm
+    minimum_contact_count: 1
+    aperture_threshold: 0.002
+  release_rule:
+    required_contact_groups: []
+    forbidden_contact_groups: []
+    minimum_contact_count: 0
+    aperture_threshold: null
+initial_qpos:
+- 0.0
+- 0.0
+sensors:
+- kind: frame_pose
+  uuid: tcp_pose
+  frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  relative_to_group: base
+  output_format: xyz_quaternion_wxyz
+model_operations:
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/link_6
+    absolute: false
+  name:
+    name: gripper/planner_grasp_site
+    absolute: false
+  position:
+  - 0.0
+  - -0.04945
+  - 0.12983
+  quaternion_wxyz: null
+  xyaxes:
+  - 0.0
+  - -1.0
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  group: 4
+  rgba:
+  - 0.0
+  - 1.0
+  - 1.0
+  - 1.0
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/link_6
+    absolute: false
+  name:
+    name: gripper/tcp_frame
+    absolute: false
+  position:
+  - -0.0001
+  - -0.044
+  - 0.1465
+  quaternion_wxyz:
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  xyaxes: null
+  group: 4
+  rgba:
+  - 1.0
+  - 0.0
+  - 1.0
+  - 1.0
+wrist_camera:
+  source: i2rt:crank_4310_d405.xml body 'camera'
+  pos:
+  - 0.0815
+  - 0.0704
+  - -0.0687
+  quat:
+  - 0.200039
+  - 0.364881
+  - 0.797347
+  - 0.437131
+  fovy: 58.0
+  aim: 0.5378
+actuator_override:
+  gripper:
+    gainprm:
+    - 5000.0
+    biasprm:
+    - 0.0
+    - -5000.0
+    - -250.0
+    forcerange:
+    - -50.0
+    - 50.0

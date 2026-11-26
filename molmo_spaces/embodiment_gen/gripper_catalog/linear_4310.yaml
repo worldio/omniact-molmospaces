@@ -1,0 +1,203 @@
+name: linear_4310
+resource_key: ''
+resource_version: i2rt-robotics/i2rt@1276f63d (2026-08-07)
+mjcf: vendor/linear_4310/linear_4310_d405.xml
+graft_root: graft_mount
+drop_joints: []
+keep_meshes:
+- Cable_holder
+- D405_with_depth_
+- Part_2
+- camera_bracket_for_D405_linear_4310_
+- gripper
+- tip_left
+- tip_right
+claims_flange_link: true
+move_group:
+  kind: gripper
+  role: tool
+  side: center
+  root_body:
+    name: gripper/gripper
+    absolute: false
+  joint_names:
+  - name: gripper/left_finger
+    absolute: false
+  - name: gripper/right_finger
+    absolute: false
+  actuator_names:
+  - name: gripper/gripper
+    absolute: false
+  leaf_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  open_command:
+  - 0.04695
+  closed_command:
+  - 0.0
+  aperture:
+    kind: joint_expression
+    terms:
+    - joint:
+        name: gripper/left_finger
+        absolute: false
+      coefficient: 1.0
+      transform: identity
+    - joint:
+        name: gripper/right_finger
+        absolute: false
+      coefficient: 1.0
+      transform: identity
+    offset: 0.0
+    clamp:
+    - 0.0
+    - 0.094
+controller:
+  kind: joint_position
+  move_group: gripper
+grasp_profile_id: linear_4310_parallel_jaw_v1
+grasp_profile:
+  profile_version: '1'
+  tool_type: parallel_jaw
+  grasp_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  approach_axis_in_grasp_frame:
+  - 0.0
+  - 0.0
+  - 1.0
+  closing_axis_in_grasp_frame:
+  - 0.0
+  - 1.0
+  - 0.0
+  symmetries:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_wxyz:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  open_configuration:
+  - 0.04695
+  closed_configuration:
+  - 0.0
+  contact_groups:
+    left_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/tip_left
+        absolute: false
+      exclude_descendants_of: []
+    right_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/tip_right
+        absolute: false
+      exclude_descendants_of: []
+    palm:
+      geom_names: []
+      body_names:
+      - name: gripper/gripper
+        absolute: false
+      include_descendants_of: []
+      exclude_descendants_of: []
+  grasp_rule:
+    required_contact_groups:
+    - left_finger
+    - right_finger
+    forbidden_contact_groups:
+    - palm
+    minimum_contact_count: 1
+    aperture_threshold: 0.002
+  release_rule:
+    required_contact_groups: []
+    forbidden_contact_groups: []
+    minimum_contact_count: 0
+    aperture_threshold: null
+initial_qpos:
+- 0.0
+- 0.0
+sensors:
+- kind: frame_pose
+  uuid: tcp_pose
+  frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  relative_to_group: base
+  output_format: xyz_quaternion_wxyz
+model_operations:
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/gripper
+    absolute: false
+  name:
+    name: gripper/planner_grasp_site
+    absolute: false
+  position:
+  - 0.0
+  - 0.0
+  - -0.1347
+  quaternion_wxyz:
+  - 0.0
+  - 1.0
+  - 0.0
+  - 0.0
+  xyaxes: null
+  group: 4
+  rgba:
+  - 0.0
+  - 1.0
+  - 1.0
+  - 1.0
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/gripper
+    absolute: false
+  name:
+    name: gripper/tcp_frame
+    absolute: false
+  position:
+  - -0.0006
+  - -0.0002
+  - -0.1471
+  quaternion_wxyz:
+  - 0.7071068
+  - 0.0
+  - 0.0
+  - 0.7071068
+  xyaxes: null
+  group: 4
+  rgba:
+  - 1.0
+  - 0.0
+  - 1.0
+  - 1.0
+wrist_camera:
+  source: 'derived from the bundled vendor model''s `camera` body (i2rt station-README extrinsic, +Z optical
+    axis, OpenCV convention), OpenCV->MuJoCo flip, re-expressed in the grasp frame; VERIFIED on real MolmoAct2
+    D405 footage (allenai/28112025-block-02): silhouette IoU 0.849 as-designed, 0.955 after a 6-DOF refine
+    moving 4 mm / 1.1 deg; fovy 58 = published D405 vertical FoV'
+  pos:
+  - -0.070435
+  - 0.0
+  - -0.057694
+  quat:
+  - -0.153051
+  - -0.690344
+  - 0.690345
+  - 0.153048
+  fovy: 58.0
+  aim: 0.9063

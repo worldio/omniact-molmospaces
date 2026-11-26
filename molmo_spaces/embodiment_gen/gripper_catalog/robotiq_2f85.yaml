@@ -1,0 +1,190 @@
+name: robotiq_2f85
+resource_key: floating_robotiq
+resource_version: 20260208_retry4
+mjcf: model.xml
+graft_root: base
+drop_joints:
+- robotiq_2f85_free_joint
+keep_meshes:
+- base
+- base_coupling
+- c-a01-85-open
+- coupler
+- driver
+- follower
+- spring_link
+- tongue
+claims_flange_link: false
+move_group:
+  kind: gripper
+  role: tool
+  side: center
+  root_body:
+    name: gripper/base
+    absolute: false
+  joint_names:
+  - name: gripper/left_driver_joint
+    absolute: false
+  - name: gripper/right_driver_joint
+    absolute: false
+  actuator_names:
+  - name: gripper/fingers_actuator
+    absolute: false
+  leaf_frame:
+    kind: site
+    name:
+      name: gripper/grasp_site
+      absolute: false
+  open_command:
+  - 0.0
+  closed_command:
+  - 255.0
+  aperture:
+    kind: geom_distance
+    geom_a:
+      name: gripper/left_pad2
+      absolute: false
+    geom_b:
+      name: gripper/right_pad2
+      absolute: false
+    maximum_distance: 0.087
+    query_limit: 0.1
+controller:
+  kind: direct_actuator
+  move_group: gripper
+grasp_profile_id: robotiq_2f85_v1
+grasp_profile:
+  profile_version: '1'
+  tool_type: parallel_jaw
+  grasp_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  approach_axis_in_grasp_frame:
+  - 0.0
+  - 0.0
+  - 1.0
+  closing_axis_in_grasp_frame:
+  - 0.0
+  - 1.0
+  - 0.0
+  symmetries:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_wxyz:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  open_configuration:
+  - 0.0
+  closed_configuration:
+  - 255.0
+  contact_groups:
+    left_finger:
+      geom_names:
+      - name: gripper/left_pad1
+        absolute: false
+      - name: gripper/left_pad2
+        absolute: false
+    right_finger:
+      geom_names:
+      - name: gripper/right_pad1
+        absolute: false
+      - name: gripper/right_pad2
+        absolute: false
+    palm:
+      geom_names: []
+      body_names:
+      - name: gripper/base
+        absolute: false
+  grasp_rule:
+    required_contact_groups:
+    - left_finger
+    - right_finger
+    forbidden_contact_groups:
+    - palm
+    minimum_contact_count: 1
+    aperture_threshold: 0.002
+  release_rule:
+    required_contact_groups: []
+    minimum_contact_count: 0
+initial_qpos:
+- 0.00296
+- 0.00296
+sensors:
+- kind: frame_pose
+  uuid: tcp_pose
+  frame:
+    kind: site
+    name:
+      name: gripper/grasp_site
+      absolute: false
+  relative_to_group: base
+  output_format: xyz_quaternion_wxyz
+model_operations:
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/base
+    absolute: false
+  name:
+    name: gripper/planner_grasp_site
+    absolute: false
+  position:
+  - 0.0
+  - 0.0
+  - 0.155
+  quaternion_wxyz:
+  - 0.7071067811865476
+  - 0.0
+  - -0.0
+  - -0.7071067811865475
+  xyaxes: null
+  group: 4
+  rgba:
+  - 0.0
+  - 1.0
+  - 1.0
+  - 1.0
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/base
+    absolute: false
+  name:
+    name: gripper/tcp_frame
+    absolute: false
+  position:
+  - 0.0
+  - 0.0
+  - 0.1733
+  quaternion_wxyz:
+  - 0.0
+  - 0.0
+  - 1.0
+  - 0.0
+  xyaxes: null
+  group: 4
+  rgba:
+  - 1.0
+  - 0.0
+  - 1.0
+  - 1.0
+wrist_camera:
+  source: wrist_camera
+  lr_swap: true   # this wrist camera mirrors L/R; order finger nodes by visual left->right (node_spec)
+  pos:
+  - -0.074
+  - 0.031
+  - -0.133
+  quat:
+  - 0.123511
+  - 0.697603
+  - -0.696236
+  - -0.115543
+  fovy: 56.74
+  aim: 0.9428

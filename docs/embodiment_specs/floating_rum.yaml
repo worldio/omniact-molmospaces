@@ -1,0 +1,160 @@
+# Executable floating RUM configuration for EmbodimentSpec schema version 1.
+
+schema_version: 1
+embodiment_id: floating_rum.single.se3
+embodiment_version: "20251110-spec1"
+
+robot_config:
+  namespace: robot_0/
+  model:
+    source: builtin
+    resource_key: floating_rum
+    resource_version: "20251110"
+    root_path: null
+    mjcf_path: model.xml
+    model_root_body: {name: base, absolute: false}
+    pre_namespaced: false
+    prefix_names: true
+  initial_qpos:
+    gripper: [0.0, 0.0]
+  initial_qpos_noise: {}
+  default_control_profile: default
+  control_profiles:
+    default:
+      controller_bindings:
+        base: base_direct
+        gripper: gripper_direct
+      actuator_overrides: {}
+  gravity_compensation:
+    enabled: false
+    root_body: null
+    include_root: true
+    include_descendants: true
+  action_noise:
+    enabled: true
+    target_arm_groups: []
+    target_base_group: null
+    action_scale_factor: 0.1
+    rotation_noise_scale: 0.1
+    max_tcp_position_noise: 0.02
+    max_tcp_rotation_noise: 0.1
+    base_action_scale_factor: 0.1
+    max_base_position_noise: 0.02
+    max_base_rotation_noise: 0.05
+  placement:
+    reset_repositionable: true
+    runtime_mobility: se3
+    footprint_xy: null
+    platform_size_xyz: null
+    forward_offset: 0.0
+    forward_offset_step: 0.02
+
+robot:
+  model_operations:
+    - kind: attach_model
+      scope: scene
+      parent_body: {name: world, absolute: true}
+      child_root_body: {name: base, absolute: false}
+      child_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      apply_namespace: true
+      use_base_pose: true
+    - kind: add_mocap_body
+      scope: scene
+      name: {name: target_ee_pose, absolute: false}
+      parent_body: null
+      initial_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      use_base_pose: true
+    - kind: add_weld
+      scope: scene
+      body_a: {name: target_ee_pose, absolute: false}
+      body_b: {name: base, absolute: false}
+      solref: [0.02, 1.0]
+      solimp: [0.9, 0.95, 0.0, 1.0, 2.0]
+  controllers:
+    base_direct: {kind: direct_actuator, move_group: base}
+    gripper_direct: {kind: direct_actuator, move_group: gripper}
+  kinematics:
+    kind: floating_frame
+    base_group: base
+    tcp_frame: {kind: site, name: {name: grasp_site, absolute: false}}
+  sensors:
+    - kind: frame_pose
+      uuid: tcp_pose
+      frame: {kind: site, name: {name: grasp_site, absolute: false}}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+
+robot_view:
+  base_group: base
+  move_groups:
+    base:
+      kind: free_joint_base
+      role: base
+      side: center
+      body: {name: base, absolute: false}
+      free_joint: {name: rum_free_joint, absolute: false}
+      additional_joint_names: []
+      actuator_names: []
+      mocap_target_body: {name: target_ee_pose, absolute: false}
+      floating: true
+      runtime_mobile: true
+    gripper:
+      kind: gripper
+      role: tool
+      side: center
+      parent_group: base
+      root_body: {name: base, absolute: false}
+      joint_names:
+        - {name: finger_left_joint, absolute: false}
+        - {name: finger_right_joint, absolute: false}
+      actuator_names:
+        - {name: fingers_actuator, absolute: false}
+      leaf_frame: {kind: site, name: {name: grasp_site, absolute: false}}
+      open_command: [0.0]
+      closed_command: [-255.0]
+      aperture:
+        kind: geom_distance
+        geom_a: {name: left_fingertip, absolute: false}
+        geom_b: {name: right_fingertip, absolute: false}
+        maximum_distance: 0.1
+        query_limit: 0.1
+  end_effectors:
+    primary:
+      arm_group: null
+      tool_group: gripper
+      tcp_frame: {kind: site, name: {name: grasp_site, absolute: false}}
+      grasp_frame: {kind: site, name: {name: grasp_site, absolute: false}}
+      grasp_profile_id: rum_parallel_jaw_v1
+
+grasp_profiles:
+  rum_parallel_jaw_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame: {kind: site, name: {name: grasp_site, absolute: false}}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries:
+      - position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]
+    open_configuration: [0.0]
+    closed_configuration: [-255.0]
+    contact_groups:
+      left_finger:
+        geom_names: [{name: left_fingertip, absolute: false}]
+      right_finger:
+        geom_names: [{name: right_fingertip, absolute: false}]
+      palm:
+        geom_names: []
+        body_names: [{name: base, absolute: false}]
+    grasp_rule:
+      required_contact_groups: [left_finger, right_finger]
+      forbidden_contact_groups: [palm]
+      minimum_contact_count: 1
+      aperture_threshold: 0.002
+    release_rule:
+      required_contact_groups: []
+      minimum_contact_count: 0

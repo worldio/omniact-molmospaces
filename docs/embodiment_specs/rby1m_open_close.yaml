@@ -1,0 +1,8 @@
+# RBY1M open/close uses the same embodiment with its relative/scalar control profile.
+extends: rby1m.yaml
+
+embodiment_id: rby1m.dual.se2.open_close
+embodiment_version: "20251224-open-close-spec1"
+
+robot_config:
+  default_control_profile: open_close

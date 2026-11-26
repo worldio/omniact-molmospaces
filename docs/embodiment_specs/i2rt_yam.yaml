@@ -1,0 +1,307 @@
+# Executable I2RT YAM configuration for EmbodimentSpec schema version 1.
+# This remains an experimental parity fixture rather than a stable public API.
+
+schema_version: 1
+embodiment_id: i2rt_yam.single.fixed
+embodiment_version: "20260223-spec1"
+
+robot_config:
+  namespace: robot_0/
+  model:
+    source: builtin
+    resource_key: i2rt_yam
+    resource_version: "20260223"
+    root_path: null
+    mjcf_path: yam.xml
+    model_root_body: {name: arm, absolute: false}
+    pre_namespaced: false
+    prefix_names: true
+
+  initial_qpos:
+    arm: [0.0, 1.047, 1.047, 0.1, -0.1, 0.0]
+    gripper: [0.0, 0.0]
+  initial_qpos_noise: null
+
+  default_control_profile: default
+  control_profiles:
+    default:
+      controller_bindings:
+        arm: arm_position
+        gripper: gripper_position
+      actuator_overrides:
+        joint1:
+          actuator: {name: joint1, absolute: false}
+          gain: 80.0
+          bias_position: -80.0
+          bias_velocity: -5.0
+          force_range: [-28.0, 28.0]
+        joint2:
+          actuator: {name: joint2, absolute: false}
+          gain: 80.0
+          bias_position: -80.0
+          bias_velocity: -5.0
+          force_range: [-28.0, 28.0]
+        joint3:
+          actuator: {name: joint3, absolute: false}
+          gain: 80.0
+          bias_position: -80.0
+          bias_velocity: -5.0
+          force_range: [-28.0, 28.0]
+        joint4:
+          actuator: {name: joint4, absolute: false}
+          gain: 10.0
+          bias_position: -10.0
+          bias_velocity: -1.5
+          force_range: [-10.0, 10.0]
+        joint5:
+          actuator: {name: joint5, absolute: false}
+          gain: 10.0
+          bias_position: -10.0
+          bias_velocity: -1.5
+          force_range: [-10.0, 10.0]
+        joint6:
+          actuator: {name: joint6, absolute: false}
+          gain: 10.0
+          bias_position: -10.0
+          bias_velocity: -1.5
+          force_range: [-10.0, 10.0]
+        gripper:
+          actuator: {name: gripper, absolute: false}
+          gain: 500.0
+          bias_position: -500.0
+          bias_velocity: -200.0
+          force_range: [-50.0, 50.0]
+
+  gravity_compensation:
+    enabled: true
+    root_body: {name: arm, absolute: false}
+    include_root: false
+    include_descendants: true
+
+  action_noise:
+    enabled: true
+    target_arm_groups: [arm]
+    target_base_group: null
+    action_scale_factor: 0.1
+    rotation_noise_scale: 0.1
+    max_tcp_position_noise: 0.02
+    max_tcp_rotation_noise: 0.1
+    base_action_scale_factor: 0.1
+    max_base_position_noise: 0.02
+    max_base_rotation_noise: 0.05
+
+  placement:
+    reset_repositionable: true
+    runtime_mobility: fixed
+    footprint_xy: [0.3, 0.3]
+    platform_size_xyz: [0.3, 0.3, 0.7]
+    forward_offset_step: 0.02
+
+robot:
+  # Operations are applied in order. `robot_model` operations happen before
+  # namespacing and attachment; `scene` operations target the destination MJCF.
+  model_operations:
+    - kind: add_site
+      scope: robot_model
+      parent_body: {name: link_6, absolute: false}
+      name: {name: planner_grasp_site, absolute: false}
+      position: [0.0, -0.04945, 0.12983]
+      quaternion_wxyz: null
+      # planner_grasp_site: the frame the grasp planner aligns with each target grasp.
+      # Derived from the YAM gripper geometry (yam.xml), expressed in the link_6 frame:
+      #   site-z (approach)    = finger-pad plate axis (pads extend +z; contacts sit at z=0.06-0.13) = +z of link_6
+      #   site-y (jaw-closing) = axis the two pads travel / separate along                           = +x of link_6
+      #   position             = pad contact centre, ~[0, -0.0495, 0.1298]
+      # xyaxes [x=[0,-1,0], y=[1,0,0]] => z=+z, y=+x; equal to the model's built-in `grasp_site`
+      # (quat [0.7071,0,0,-0.7071]). Still pair with allow_best_effort_grasp_orientation (some
+      # library approaches aren't reachable top-down). Paired-benchmark verified 2026-07: ~doubles
+      # YAM pick (13->37% matched) and pnp (16->32%) vs the earlier [0.992774,...] value, whose
+      # jaw-closing axis was ~90 deg off (approach ~5 deg off) — see git history for that value's
+      # flawed pad-centroid derivation.
+      xyaxes: [0.0, -1.0, 0.0, 1.0, 0.0, 0.0]
+      group: 4
+      rgba: [0.0, 1.0, 1.0, 1.0]
+
+    - kind: add_mocap_body
+      scope: scene
+      name: {name: base, absolute: false}
+      parent_body: null
+      initial_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+
+    - kind: add_material
+      scope: scene
+      name: {name: robot_base_material, absolute: false}
+      rgba: [0.3, 0.2, 0.1, 1.0]
+
+    - kind: add_geom
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      name: {name: robot_base_geom, absolute: false}
+      geom_type: box
+      size: [0.15, 0.15, 0.35]
+      position: [0.0, 0.0, 0.35]
+      quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      material: {name: robot_base_material, absolute: false}
+      group: 0
+
+    - kind: attach_model
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      child_root_body: {name: arm, absolute: false}
+      child_pose:
+        position: [0.0, 0.0, 0.7]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      apply_namespace: true
+
+  controllers:
+    arm_position:
+      kind: joint_position
+      move_group: arm
+    arm_relative_position:
+      kind: joint_relative_position
+      move_group: arm
+    gripper_position:
+      kind: joint_position
+      move_group: gripper
+
+  kinematics:
+    kind: damped_least_squares
+    online_backend: numpy
+    batch_backend: warp
+    optimizable_groups: [arm]
+    max_iterations: 50
+    convergence_tolerance: 0.001
+    success_tolerance: 0.0005
+    damping: 1.0e-12
+    integration_step: 1.0
+    online_max_iterations: 1000
+    online_success_tolerance: 0.0001
+
+  sensors:
+    - kind: frame_pose
+      uuid: tcp_pose
+      frame:
+        kind: site
+        name: {name: planner_grasp_site, absolute: false}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+
+robot_view:
+  base_group: base
+  move_groups:
+    base:
+      kind: mocap_base
+      role: base
+      side: center
+      body: {name: base, absolute: false}
+      runtime_mobile: false
+
+    arm:
+      kind: joint
+      role: arm
+      side: center
+      parent_group: base
+      root_body: {name: arm, absolute: false}
+      joint_names:
+        - {name: joint1, absolute: false}
+        - {name: joint2, absolute: false}
+        - {name: joint3, absolute: false}
+        - {name: joint4, absolute: false}
+        - {name: joint5, absolute: false}
+        - {name: joint6, absolute: false}
+      actuator_names:
+        - {name: joint1, absolute: false}
+        - {name: joint2, absolute: false}
+        - {name: joint3, absolute: false}
+        - {name: joint4, absolute: false}
+        - {name: joint5, absolute: false}
+        - {name: joint6, absolute: false}
+      leaf_frame:
+        kind: site
+        name: {name: planner_grasp_site, absolute: false}
+
+    gripper:
+      kind: gripper
+      role: tool
+      side: center
+      parent_group: base
+      root_body: {name: link_6, absolute: false}
+      joint_names:
+        - {name: left_finger, absolute: false}
+        - {name: right_finger, absolute: false}
+      actuator_names:
+        - {name: gripper, absolute: false}
+      leaf_frame:
+        kind: site
+        name: {name: planner_grasp_site, absolute: false}
+      open_command: [0.041]
+      closed_command: [0.0]
+      aperture:
+        kind: joint_expression
+        terms:
+          - joint: {name: left_finger, absolute: false}
+            coefficient: 1.0
+            transform: identity
+          - joint: {name: right_finger, absolute: false}
+            coefficient: -1.0
+            transform: identity
+        offset: 0.0
+        clamp: [0.0, 0.075]
+
+  end_effectors:
+    primary:
+      arm_group: arm
+      tool_group: gripper
+      tcp_frame:
+        kind: site
+        name: {name: planner_grasp_site, absolute: false}
+      grasp_frame:
+        kind: site
+        name: {name: planner_grasp_site, absolute: false}
+      grasp_profile_id: yam_parallel_jaw_v1
+
+grasp_profiles:
+  yam_parallel_jaw_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame:
+      kind: site
+      name: {name: planner_grasp_site, absolute: false}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries:
+      - position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]
+    open_configuration: [0.041]
+    closed_configuration: [0.0]
+    contact_groups:
+      left_finger:
+        geom_names: []
+        body_names: []
+        include_descendants_of:
+          - {name: link_left_finger, absolute: false}
+        exclude_descendants_of: []
+      right_finger:
+        geom_names: []
+        body_names: []
+        include_descendants_of:
+          - {name: link_right_finger, absolute: false}
+        exclude_descendants_of: []
+      palm:
+        geom_names: []
+        body_names:
+          - {name: link_6, absolute: false}
+        include_descendants_of: []
+        exclude_descendants_of: []
+    grasp_rule:
+      required_contact_groups: [left_finger, right_finger]
+      forbidden_contact_groups: [palm]
+      minimum_contact_count: 1
+      aperture_threshold: 0.002
+    release_rule:
+      required_contact_groups: []
+      forbidden_contact_groups: []
+      minimum_contact_count: 0
+      aperture_threshold: null

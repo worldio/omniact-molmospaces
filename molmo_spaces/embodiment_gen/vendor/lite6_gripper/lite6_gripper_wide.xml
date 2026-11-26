@@ -1,0 +1,207 @@
+<!-- UFACTORY Lite 6 gripper, WIDE (default) finger mounting, lifted out of the full-arm model as a
+     standalone graftable asset. Geometry, inertials, the finger coupling and the actuator are
+     VERBATIM from google-deepmind/mujoco_menagerie lite6_gripper_wide.xml, BSD-3-Clause
+     (LICENSE.menagerie), checked out at 8161bba (2026-09-04), except where marked below.
+
+     Version, as precisely as it can be pinned. The gripper subtree's CONTENT was finalised by
+     PR #89 (merged 15b7a2b, 2024-09-09; assets 7db7b00, models db38690, wide/narrow rename
+     27583fe). The only commit to touch the file since is ac6b2b0 (2026-05-18), a repo-wide XML
+     reformat that changed line wrapping and not one attribute -- verified by diffing 47b0810..HEAD.
+     So 2024-09-09 is the real version of what this file copies, NOT the checkout date, and not
+     71f066ad (2026-07-04), which is merely the last commit to touch the ufactory_lite6 DIRECTORY
+     and edits scene.xml's <statistic> tags rather than this model.
+
+     Upstream of menagerie there is no version to pin, and the provenance is weaker than
+     linear_4310's. UFACTORY publishes the gripper as an unversioned .step on its download page
+     (the same page versions its manuals, e.g. "Hardware Manual V2.6.2", but not the CAD). The
+     xarm_ros2 URDF that menagerie's README cites supplied the ARM only -- its Lite 6 gripper has
+     the fingers FUSED to the body -- and the README links it at `master`, unpinned. The separated
+     fingers this file needs came from that .step, hand-split along the finger tracks in Onshape by
+     the menagerie contributor. Consequently the <inertial> values below are NOT manufacturer data:
+     the README states they were estimated in Onshape by picking a density that reproduces each
+     part's real mass and assuming uniform distribution. Treat them as an estimate if a grasp ever
+     turns out to be inertia-sensitive.
+
+     Checked against UFACTORY's own published numbers (docs.lite6.ufactory.cc 5.End-Effector, plus
+     reseller spec tables for the figures that page omits):
+
+       stroke      the fingers BOLT ON TWO WAYS and the vendor quotes a different window for each:
+                   default ("wide") 20-38 mm, reverse ("narrow") 0-16 mm -- one 16 mm stroke, moved
+                   outboard or inboard. Measured pad-to-pad on the models: wide 22.24 -> 38.42 mm,
+                   narrow 0.02 -> 16.20 mm. The geometry is therefore VERIFIED against the vendor
+                   spec, which is the strongest check this asset gets given the hand-split CAD
+                   provenance above. THIS FILE IS THE WIDE MOUNTING; the narrow one is the only way
+                   to reach anything thinner than 22 mm, and is not currently vendored.
+       states      "There are two states of the gripper, open and close." The SDK exposes exactly
+                   open_lite6_gripper / close_lite6_gripper / stop_lite6_gripper, and the API's
+                   only parameter is op=open|close|stop -- no position, no force. Contrast
+                   xarm_set_gripper_position / xarm_set_bio_gripper_pos_force, which UFACTORY does
+                   provide for its OTHER grippers. That restriction is preserved by the CATALOG
+                   entry, whose open_command and closed_command are one value each, rather than by
+                   the actuator type -- see the servo note below.
+       force       5 N, per every reseller spec table (Generation Robots, RobotShop, MyBotShop);
+                   UFACTORY's own End-Effector page does not state it. The actuator below carries
+                   upstream's forcerange of +-10 N, i.e. TWICE the quoted grip force -- left as
+                   upstream has it so this file stays a faithful copy, but flagged: a grasp tuned
+                   here can hold roughly double what the real gripper would.
+       payload     <=600 g (vendor). Modelled mass is 308 g against a quoted 350 g, the 42 g gap
+                   being another consequence of the Onshape density estimate.
+
+     Extraction: the upstream file models the whole Lite 6, gripper included, as one tree; this is
+     the `gripper_body` subtree of `link6` promoted to worldbody. Upstream mounts it at link6 with
+     an identity transform, so the gripper's own frame is already the flange frame -- fingers open
+     along +-y, approach along +z, which is the catalog mount convention (as robotiq and yam_jaw
+     are), so no adapter body and no mount_quat are needed.
+
+     Aperture. The two slides carry MIRRORED ranges, so the pad gap is their DIFFERENCE, and the
+     wide mounting bolts each finger outboard, which adds a constant the joints never see:
+     gap = (right - left) + 22.220 mm, verified against mj_geomDistance across the stroke
+     (22.240 / 30.220 / 38.420 mm at joint differences 0.020 / 8.000 / 16.200). The catalog entry
+     carries that offset; a narrow entry would carry 0.
+
+     Authored departures from the upstream file, and nothing else:
+     * the <default class="lite6"> hierarchy is INLINED. Upstream hangs damping/armature, the
+       visual and collision geom classes and the site defaults off a childclass declared on
+       `link_base` -- an ancestor this subtree does not include. Carried implicitly, the fingers
+       would graft with zero damping and zero armature and the collision geoms would gain the mass
+       their class zeroes out. Every value below is the one the class would have supplied.
+     * the <keyframe> is dropped: its qpos spans the arm this subtree no longer has.
+     * upstream's `motor` (ctrl = newtons) becomes a SATURATING position servo, ctrl = the left
+       slide's position over its own range, kp=500000, dampratio=1, forcerange UNCHANGED at the
+       +-10 N upstream ships. kp is deliberately far beyond anything a real servo would run: it
+       exists so kp*error exceeds the forcerange for ANY nonzero error, turning the servo into a
+       constant-force clamp that stops exactly at its target. Measured against upstream's motor,
+       the grip is identical while the stops are strictly better -- a constant force has nothing to
+       stop it at a limit, so the motor parks the jaw 0.6-1.3 mm OUTSIDE the joint range and drags
+       the mirroring equality more than a millimetre out of true, and those out-of-range qpos would
+       be written into every emitted trajectory. Avoid kp below ~5e4: near kp*error ~ forcerange
+       the solver chatters between gripping and releasing.
+     * the two <contact><exclude> entries below, which restore filtering upstream gets implicitly.
+     * the two tip MESH colliders become BOXES. This one is a bug fix; see the next section.
+     * upstream's `end_effector` site is renamed `grasp_site`, pose unchanged. The catalog's
+       planner_grasp_site is only added to the emitted spec, not to the model the builder compiles,
+       and builder.rest_pose falls back to a site named `grasp_site` to know where the tool is.
+       Every other catalog asset ships one under that name (linear_4310's vendor file included);
+       named `end_effector`, this one made rest_pose return None, the emitted rest pose fell back
+       to all-zero joints, and validate T2 rejected every seed with the gripper body 30 mm inside
+       the last arm link.
+
+     Why the tip colliders had to change. As shipped, this gripper does not hold anything: closing
+     on a welded block, the jaws sink most of the way through it and develop a fraction of their
+     force. Measured on the standalone asset, closing from open onto blocks 24-38 mm thick --
+
+                      as shipped (mesh)              with box colliders        theory
+       block 24 mm    qpos -0.107  10.15 N  -0.76    -0.822  10.00 N  -0.07    -0.900
+       block 26 mm    qpos -0.013   1.77 N  -1.89    -1.822  10.00 N  -0.07    -1.900
+       block 30 mm    qpos -0.014   2.22 N  -3.89    -3.822  10.00 N  -0.07    -3.900
+       block 34 mm    qpos -0.015   2.48 N  -5.87    -5.822  10.00 N  -0.07    -5.900
+       block 38 mm    qpos -0.017   3.34 N  -7.88    -7.822  10.00 N  -0.07    -7.900
+                                    (force, penetration mm; qpos in mm)
+
+     -- the shipped column shows the jaws closing to within 0.1 mm of fully shut no matter how
+     thick the block is, penetrating it by up to 7.9 mm and gripping at 1.8-3.3 N of the 10 N
+     available. Boxed, qpos tracks the geometric prediction to 0.078 mm at every size and the grip
+     is a flat 10.00 N. The boxes match the meshes' world extents to 0.010 mm.
+
+     This is UPSTREAM's behaviour, not something the extraction introduced: the same test on
+     menagerie's own full-arm lite6_gripper_wide.xml puts the left finger at +0.725 mm against a
+     -0.900 prediction, 1.64 mm into the block. The NARROW model passes the identical test
+     (-3.968 against -4.000, 0.00 mm penetration, 9.90 N), which is what makes the wide colliders
+     specifically, rather than the test, the thing at fault.
+
+     The cause is contact COUNT, not shape. The tip mesh is a plain 4.40 x 20.00 x 20.00 mm slab,
+     so a box is its convex hull rather than a simplification of it -- but mesh-vs-box collision
+     yields a single contact point, and one point cannot resist a squeeze, so the solver lets the
+     jaw pass through. Box-vs-box generates a face manifold and holds. Upstream splitting each
+     finger into base and tip already shows the shape was not the remaining problem. The same move
+     is what linear_4310's vendor file makes for its own L-shaped fingers.
+
+     NOT a departure, and deliberately preserved: the wide fingers carry ASYMMETRIC sliding
+     friction upstream -- left 6.0, right 5.0, with identical everything else. That reads like a
+     slip rather than a design, but it is the shipped model's behaviour and this file is a copy;
+     correcting it would silently change grasp outcomes against the reference. Note also that wide
+     uses frictionloss 0.4 on the slides where narrow uses 1.0. -->
+<mujoco model="lite6_gripper_wide">
+  <compiler angle="radian" meshdir="assets" autolimits="true"/>
+
+  <!-- upstream's integrator; the generated embodiments this grafts into compile with
+       implicitfast anyway, so standalone loads must match -->
+  <option integrator="implicitfast"/>
+
+  <asset>
+    <material name="white" rgba="1 1 1 1"/>
+    <material name="black" rgba=".1 .1 .1 1"/>
+
+    <mesh file="visual/gripper_lite_body.stl"/>
+    <mesh file="visual/gripper_lite_left_finger_wide.stl"/>
+    <mesh file="visual/gripper_lite_right_finger_wide.stl"/>
+    <mesh name="gripper_lite_body_c" file="collision/gripper_lite_body.stl"/>
+    <mesh file="collision/gripper_lite_left_finger_wide_base.stl"/>
+    <mesh file="collision/gripper_lite_right_finger_wide_base.stl"/>
+  </asset>
+
+  <worldbody>
+    <body name="gripper_body" pos="0 0 0" quat="1 0 0 0">
+      <inertial pos="0.0 0.0 0.026" quat="1 0 0 0" mass="0.26"
+        diaginertia="0.00016117 0.000118 0.00014455"/>
+      <geom name="gripper_lite_body" type="mesh" mesh="gripper_lite_body" material="white"
+        contype="0" conaffinity="0" group="2"/>
+      <geom name="gripper_lite_body_c" type="mesh" mesh="gripper_lite_body_c"
+        group="3" mass="0" density="0"/>
+      <!-- Finger and base separated to avoid convex hull preventing gripping -->
+      <body name="gripper_left_finger" pos="0 0 0.054" quat="1 0 0 0">
+        <inertial pos="0.0 -0.01 0.01" quat="1 0 0 0" mass="0.024"
+          diaginertia="1.961e-6 2.274e-6 1.238e-6"/>
+        <joint name="gripper_left_finger" pos="0 0 0" axis="0 1 0" type="slide" limited="true"
+          range="-0.0081 -1e-5" damping="1" armature="0.1" frictionloss="0.4"/>
+        <geom name="gripper_left_finger_visual" type="mesh" mesh="gripper_lite_left_finger_wide"
+          material="black" contype="0" conaffinity="0" group="2"/>
+        <geom name="gripper_left_finger_base" type="mesh" mesh="gripper_lite_left_finger_wide_base"
+          material="black" group="3" mass="0" density="0" condim="1" solimp="2 1 0.01"
+          solref="0.01 1" friction="6 0.5 0.1"/>
+        <!-- the tip's MESH collider is replaced by the box it already is: the mesh is a plain
+             4.40 x 20.00 x 20.00 mm slab, so this is its convex hull to within the corner
+             rounding, not an approximation of a complex shape. The swap is not about fit, it is
+             about CONTACT COUNT -- mesh-vs-box yields a single point, and one point cannot hold a
+             squeezed object, so the jaws sank into whatever they closed on. See the header. -->
+        <geom name="gripper_left_finger" type="box" pos="0 -0.01331 0.0171"
+          size="0.010 0.0022 0.010" group="3" mass="0" density="0" condim="4" solimp="2 1 0.01"
+          solref="0.01 1" friction="6 0.5 0.1"/>
+      </body>
+      <body name="gripper_right_finger" pos="0 0 0.054" quat="1 0 0 0">
+        <inertial pos="0.0 0.01 0.01" quat="1 0 0 0" mass="0.024"
+          diaginertia="1.961e-6 2.274e-6 1.238e-6"/>
+        <joint name="gripper_right_finger" pos="0 0 0" axis="0 1 0" type="slide" limited="true"
+          range="1e-5 0.0081" damping="1" armature="0.1" frictionloss="0.4"/>
+        <geom name="gripper_right_finger_visual" type="mesh" mesh="gripper_lite_right_finger_wide"
+          material="black" contype="0" conaffinity="0" group="2"/>
+        <geom name="gripper_right_finger_base" type="mesh" mesh="gripper_lite_right_finger_wide_base"
+          material="black" group="3" mass="0" density="0" condim="1" solimp="2 1 0.01"
+          solref="0.01 1" friction="5 0.5 0.1"/>
+        <geom name="gripper_right_finger" type="box" pos="0 0.01331 0.0171"
+          size="0.010 0.0022 0.010" group="3" mass="0" density="0" condim="4" solimp="2 1 0.01"
+          solref="0.01 1" friction="5 0.5 0.1"/>
+      </body>
+      <!-- End effector reference point is in the centre at the tip of the grippers. Upstream names
+           it `end_effector`; renamed `grasp_site` here, see the header. -->
+      <site name="grasp_site" pos="0 0 0.0811" size="0.001" rgba="0.5 0.5 0.5 0.3" group="4"/>
+    </body>
+  </worldbody>
+
+  <!-- see the narrow sibling's header for the full account: detached from the jointed link6 the
+       fingers' hulls sink into gripper_lite_body_c under a 659 N phantom clamp, because MuJoCo's
+       filterparent does not treat a world-welded body as a parent. -->
+  <contact>
+    <exclude body1="gripper_body" body2="gripper_left_finger"/>
+    <exclude body1="gripper_body" body2="gripper_right_finger"/>
+  </contact>
+
+  <actuator>
+    <position name="gripper" joint="gripper_left_finger" ctrlrange="-0.0081 -1e-5"
+      kp="500000" dampratio="1" forcerange="-10 10"/>
+  </actuator>
+
+  <equality>
+    <joint joint1="gripper_left_finger" joint2="gripper_right_finger" polycoef="0 -1 0 0 0"/>
+  </equality>
+</mujoco>

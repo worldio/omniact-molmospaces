@@ -1,0 +1,186 @@
+name: rum
+resource_key: floating_rum
+resource_version: '20251110'
+mjcf: model.xml
+graft_root: base
+drop_joints:
+- rum_free_joint
+keep_meshes:
+- finger
+- foam_insert
+- gripper_body
+- iphone
+claims_flange_link: false
+move_group:
+  kind: gripper
+  role: tool
+  side: center
+  root_body:
+    name: gripper/base
+    absolute: false
+  joint_names:
+  - name: gripper/finger_left_joint
+    absolute: false
+  - name: gripper/finger_right_joint
+    absolute: false
+  actuator_names:
+  - name: gripper/fingers_actuator
+    absolute: false
+  leaf_frame:
+    kind: site
+    name:
+      name: gripper/grasp_site
+      absolute: false
+  open_command:
+  - 0.0
+  closed_command:
+  - -255.0
+  aperture:
+    kind: geom_distance
+    geom_a:
+      name: gripper/left_fingertip
+      absolute: false
+    geom_b:
+      name: gripper/right_fingertip
+      absolute: false
+    maximum_distance: 0.1
+    query_limit: 0.1
+controller:
+  kind: direct_actuator
+  move_group: gripper
+grasp_profile_id: rum_parallel_jaw_v1
+grasp_profile:
+  profile_version: '1'
+  tool_type: parallel_jaw
+  grasp_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  approach_axis_in_grasp_frame:
+  - 0.0
+  - 0.0
+  - 1.0
+  closing_axis_in_grasp_frame:
+  - 0.0
+  - 1.0
+  - 0.0
+  symmetries:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_wxyz:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  open_configuration:
+  - 0.0
+  closed_configuration:
+  - -255.0
+  contact_groups:
+    left_finger:
+      geom_names:
+      - name: gripper/left_fingertip
+        absolute: false
+    right_finger:
+      geom_names:
+      - name: gripper/right_fingertip
+        absolute: false
+    palm:
+      geom_names: []
+      body_names:
+      - name: gripper/base
+        absolute: false
+  grasp_rule:
+    required_contact_groups:
+    - left_finger
+    - right_finger
+    forbidden_contact_groups:
+    - palm
+    minimum_contact_count: 1
+    aperture_threshold: 0.002
+  release_rule:
+    required_contact_groups: []
+    minimum_contact_count: 0
+initial_qpos:
+- 0.0
+- 0.0
+sensors:
+- kind: frame_pose
+  uuid: tcp_pose
+  frame:
+    kind: site
+    name:
+      name: gripper/grasp_site
+      absolute: false
+  relative_to_group: base
+  output_format: xyz_quaternion_wxyz
+model_operations:
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/base
+    absolute: false
+  name:
+    name: gripper/planner_grasp_site
+    absolute: false
+  position:
+  - 0.14
+  - 3.1086244689504386e-17
+  - 0.014
+  quaternion_wxyz:
+  - -5.551115123125783e-17
+  - 0.7071067811865475
+  - 5.551115123125783e-17
+  - 0.7071067811865475
+  xyaxes: null
+  group: 4
+  rgba:
+  - 0.0
+  - 1.0
+  - 1.0
+  - 1.0
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/base
+    absolute: false
+  name:
+    name: gripper/tcp_frame
+    absolute: false
+  position:
+  - 0.1374
+  - 0.0
+  - 0.0138
+  quaternion_wxyz:
+  - 0.5
+  - 0.5
+  - -0.5
+  - -0.5
+  xyaxes: null
+  group: 4
+  rgba:
+  - 1.0
+  - 0.0
+  - 1.0
+  - 1.0
+wrist_camera:
+  source: wrist_cam
+  pos:
+  - 0.086
+  - 0.0
+  - -0.176
+  quat:
+  - 0.092295
+  - 0.701058
+  - 0.701058
+  - 0.092295
+  fovy: 53.1
+  aim: 0.9659
+mount_quat:
+- 0.7071068
+- 0.0
+- -0.7071068
+- 0.0

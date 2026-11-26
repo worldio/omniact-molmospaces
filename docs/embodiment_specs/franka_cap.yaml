@@ -1,0 +1,196 @@
+# Executable Franka CAP configuration for EmbodimentSpec schema version 1.
+
+schema_version: 1
+embodiment_id: franka_cap.single.fixed
+embodiment_version: "20260213-spec1"
+
+robot_config:
+  namespace: robot_0/
+  model:
+    source: builtin
+    resource_key: franka_cap
+    resource_version: "20260213"
+    root_path: null
+    mjcf_path: model.xml
+    model_root_body: {name: fr3_link0, absolute: false}
+    pre_namespaced: false
+    prefix_names: true
+  initial_qpos:
+    arm: [0.0, -1.5, 0.116, -2.45, 0.0, 0.842, 0.965]
+    gripper: [0.00296, 0.00296]
+  initial_qpos_noise:
+    arm: [0.025, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175]
+  initial_qpos_limit_policy:
+    gripper: allow_out_of_range
+  default_control_profile: default
+  control_profiles:
+    default:
+      controller_bindings:
+        arm: arm_position
+        gripper: gripper_position
+      actuator_overrides: {}
+  gravity_compensation:
+    enabled: true
+    root_body: {name: fr3_link0, absolute: false}
+    include_root: false
+    include_descendants: true
+  action_noise:
+    enabled: true
+    target_arm_groups: [arm]
+    target_base_group: null
+    action_scale_factor: 0.1
+    rotation_noise_scale: 0.1
+    max_tcp_position_noise: 0.02
+    max_tcp_rotation_noise: 0.1
+    base_action_scale_factor: 0.1
+    max_base_position_noise: 0.02
+    max_base_rotation_noise: 0.05
+  placement:
+    reset_repositionable: true
+    runtime_mobility: fixed
+    footprint_xy: [0.5, 0.5]
+    platform_size_xyz: [0.5, 0.5, 0.58]
+    forward_offset: 0.0
+    forward_offset_step: 0.02
+
+robot:
+  model_operations:
+    - kind: add_texture
+      scope: scene
+      name: {name: robot_base_texture, absolute: false}
+      texture_type: cube
+      file: assets/base_textures/DarkWood2.png
+      randomized_files:
+        - assets/base_textures/CrossHatchWood.png
+        - assets/base_textures/DarkWood2.png
+        - assets/base_textures/DarkWoodFloors.png
+        - assets/base_textures/DarkWoodPlanks.png
+        - assets/base_textures/DarkWoodSmooth.png
+        - assets/base_textures/LightWoodCounters.png
+        - assets/base_textures/MediumWoodCounters.png
+        - assets/base_textures/MediumWoodSmooth.png
+        - assets/base_textures/TexturesCom_WoodFine0031_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0038_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0038_1_seamless_albedo_S_cropped.png
+        - assets/base_textures/TexturesCom_WoodFine0044_1_seamless_albedo_S.png
+        - assets/base_textures/TexturesCom_WoodFine0050_1_seamless_S.png
+        - assets/base_textures/TexturesCom_WoodFine0050_1_seamless_S_pale.png
+        - assets/base_textures/TexturesCom_WoodWhite.png
+        - assets/base_textures/TexturesCom_WornWood2_albedo_S.png
+        - assets/base_textures/WoodGrains1.png
+        - assets/base_textures/WoodGrains2.png
+        - assets/base_textures/WoodGrains4.png
+        - assets/base_textures/WoodGrains5.png
+        - assets/base_textures/WoodPlanksCleanseamlesWhitePainted.png
+        - assets/base_textures/WoodSlashhatch.png
+    - kind: add_material
+      scope: scene
+      name: {name: robot_base_material, absolute: false}
+      texture: {name: robot_base_texture, absolute: false}
+    - kind: add_mocap_body
+      scope: scene
+      name: {name: base, absolute: false}
+      parent_body: null
+      initial_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      use_base_pose: true
+    - kind: add_geom
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      name: {name: robot_base_geom, absolute: false}
+      geom_type: box
+      size: [0.25, 0.25, 0.29]
+      position: [0.0, 0.0, 0.29]
+      material: {name: robot_base_material, absolute: false}
+      group: 0
+    - kind: attach_model
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      child_root_body: {name: fr3_link0, absolute: false}
+      child_pose:
+        position: [0.0, 0.0, 0.58]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      apply_namespace: true
+  controllers:
+    arm_position: {kind: joint_position, move_group: arm}
+    gripper_position: {kind: joint_position, move_group: gripper}
+  kinematics:
+    kind: damped_least_squares
+    online_backend: numpy
+    batch_backend: warp
+    optimizable_groups: [arm]
+    max_iterations: 50
+    convergence_tolerance: 0.001
+    success_tolerance: 0.0005
+    damping: 1.0e-12
+    integration_step: 1.0
+    online_max_iterations: 1000
+    online_success_tolerance: 0.0001
+  sensors:
+    - kind: frame_pose
+      uuid: tcp_pose
+      frame: {kind: site, name: {name: gripper/grasp_site}}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+
+robot_view:
+  base_group: base
+  runtime_name: franka_cap
+  move_groups:
+    base:
+      kind: mocap_base
+      role: base
+      side: center
+      body: {name: base}
+      runtime_mobile: false
+    arm:
+      kind: joint
+      role: arm
+      side: center
+      parent_group: base
+      root_body: {name: fr3_link0}
+      joint_names: [{name: fr3_joint1}, {name: fr3_joint2}, {name: fr3_joint3}, {name: fr3_joint4}, {name: fr3_joint5}, {name: fr3_joint6}, {name: fr3_joint7}]
+      actuator_names: [{name: fr3_joint1}, {name: fr3_joint2}, {name: fr3_joint3}, {name: fr3_joint4}, {name: fr3_joint5}, {name: fr3_joint6}, {name: fr3_joint7}]
+      leaf_frame: {kind: site, name: {name: gripper/grasp_site}}
+    gripper:
+      kind: gripper
+      role: tool
+      side: center
+      parent_group: base
+      root_body: {name: gripper/base}
+      joint_names: [{name: gripper/finger_left_joint}, {name: gripper/finger_right_joint}]
+      actuator_names: [{name: gripper/fingers_actuator}]
+      leaf_frame: {kind: site, name: {name: gripper/grasp_site}}
+      open_command: [0.0]
+      closed_command: [255.0]
+      aperture:
+        kind: geom_distance
+        geom_a: {name: gripper/left_pad2}
+        geom_b: {name: gripper/right_pad2}
+        maximum_distance: 0.087
+        query_limit: 0.1
+  end_effectors:
+    primary:
+      arm_group: arm
+      tool_group: gripper
+      tcp_frame: {kind: site, name: {name: gripper/grasp_site}}
+      grasp_frame: {kind: site, name: {name: gripper/grasp_site}}
+      grasp_profile_id: cap_parallel_jaw_v1
+
+grasp_profiles:
+  cap_parallel_jaw_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame: {kind: site, name: {name: gripper/grasp_site}}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries: [{position: [0.0, 0.0, 0.0], quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]}]
+    open_configuration: [0.0]
+    closed_configuration: [255.0]
+    contact_groups:
+      left_finger: {geom_names: [{name: gripper/left_pad2}]}
+      right_finger: {geom_names: [{name: gripper/right_pad2}]}
+      palm: {geom_names: [], body_names: [{name: gripper/base}]}
+    grasp_rule: {required_contact_groups: [left_finger, right_finger], forbidden_contact_groups: [palm], minimum_contact_count: 1, aperture_threshold: 0.002}
+    release_rule: {required_contact_groups: [], minimum_contact_count: 0}

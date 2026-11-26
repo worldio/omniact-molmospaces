@@ -1,0 +1,284 @@
+name: lite6_gripper_wide
+resource_key: ''
+resource_version: google-deepmind/mujoco_menagerie ufactory_lite6 PR#89 @ 15b7a2b (2024-09-09)
+mjcf: vendor/lite6_gripper/lite6_gripper_wide.xml
+graft_root: gripper_body
+drop_joints: []
+# six, not the eight the wide subtree declares upstream: the two _wide_tip meshes are replaced by
+# box colliders in the vendor file (see its header -- the shipped mesh tips do not hold an object).
+keep_meshes:
+- gripper_lite_body
+- gripper_lite_body_c
+- gripper_lite_left_finger_wide
+- gripper_lite_left_finger_wide_base
+- gripper_lite_right_finger_wide
+- gripper_lite_right_finger_wide_base
+claims_flange_link: false
+move_group:
+  kind: gripper
+  role: tool
+  side: center
+  root_body:
+    name: gripper/gripper_body
+    absolute: false
+  joint_names:
+  - name: gripper/gripper_left_finger
+    absolute: false
+  - name: gripper/gripper_right_finger
+    absolute: false
+  actuator_names:
+  - name: gripper/gripper
+    absolute: false
+  # How a ONE-value gripper state expands to the two slides. Without a mapping,
+  # ConfiguredGripperMoveGroup.expand_joint_pos fills both joints with the scalar, which is right
+  # for linear_4310 (both slides run [0, 0.047]) and wrong here: the slides are MIRRORED and neither
+  # range contains zero, so a scalar -0.0081 became [-0.0081, -0.0081], the right finger out of its
+  # [1e-5, 0.0081] range and the aperture reading 22.24 mm for a jaw that is actually 38.42 mm open.
+  # The scalar is the LEFT slide's value -- the actuator's coordinate, the same convention as
+  # open_command/closed_command -- and the equality coupling gives right = -left. Two-value states
+  # pass through unchanged. rby1's shipped spec declares the same mirror for its fingers.
+  state_mapping:
+    input_dimension: 1
+    matrix:
+    - - 1.0
+    - - -1.0
+    bias:
+    - 0.0
+    - 0.0
+  leaf_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  open_command:
+  - -0.0081
+  closed_command:
+  - -1.0e-05
+  aperture:
+    kind: joint_expression
+    # The two slides carry MIRRORED ranges, so the pad gap is their DIFFERENCE -- and this, the
+    # DEFAULT mounting, bolts each finger outboard, which adds a constant the joints never see.
+    # Measured against mj_geomDistance between the tip colliders across the stroke: 22.240 /
+    # 30.220 / 38.420 mm at joint differences of 0.020 / 8.000 / 16.200, i.e. offset +22.220 mm
+    # exactly, unchanging. The reversed mounting would carry 0 here instead, which is why the two
+    # are separate grippers rather than one with a flag.
+    terms:
+    - joint:
+        name: gripper/gripper_right_finger
+        absolute: false
+      coefficient: 1.0
+      transform: identity
+    - joint:
+        name: gripper/gripper_left_finger
+        absolute: false
+      coefficient: -1.0
+      transform: identity
+    offset: 0.02222
+    clamp:
+    - 0.02224
+    - 0.03842
+controller:
+  kind: joint_position
+  move_group: gripper
+grasp_profile_id: lite6_gripper_wide_parallel_jaw_v1
+grasp_profile:
+  profile_version: '1'
+  tool_type: parallel_jaw
+  grasp_frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  approach_axis_in_grasp_frame:
+  - 0.0
+  - 0.0
+  - 1.0
+  closing_axis_in_grasp_frame:
+  - 0.0
+  - 1.0
+  - 0.0
+  symmetries:
+  - position:
+    - 0.0
+    - 0.0
+    - 0.0
+    quaternion_wxyz:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  open_configuration:
+  - -0.0081
+  closed_configuration:
+  - -1.0e-05
+  contact_groups:
+    # Each finger by BODY, as linear_4310 and yam_jaw do, not by geom name. Both colliders under the
+    # body count -- the box tip an object is meant to land on and the mesh carriage below it, which
+    # a tall object can also reach -- but naming the carriage geom outright does not work: the
+    # planner's IK model is assembled with strip_meshes=True, which deletes every mesh geom, and a
+    # geom_names reference to gripper_left_finger_base then fails to resolve in MlSpacesKinematics
+    # (validate T2 died at assembly on every seed). A body reference survives the stripping.
+    left_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/gripper_left_finger
+        absolute: false
+      exclude_descendants_of: []
+    right_finger:
+      geom_names: []
+      body_names: []
+      include_descendants_of:
+      - name: gripper/gripper_right_finger
+        absolute: false
+      exclude_descendants_of: []
+    palm:
+      geom_names: []
+      body_names:
+      - name: gripper/gripper_body
+        absolute: false
+      include_descendants_of: []
+      exclude_descendants_of: []
+  grasp_rule:
+    required_contact_groups:
+    - left_finger
+    - right_finger
+    forbidden_contact_groups:
+    - palm
+    minimum_contact_count: 1
+    # NOT the 0.002 the other catalog entries use, but the SAME RULE that produces it: the closed
+    # aperture plus the planner's empty-gripper margin. The check here is an absolute
+    # `inter_finger_dist >= threshold` (robots/configured/sensors.py), and the planner's own
+    # "object is not in grasp" check (base_object_manipulation_planner_policy.check_failure) is
+    # `inter_finger_dist < inter_finger_dist_range[0] + gripper_empty_threshold`, a global policy
+    # default of 0.002 that cannot be set per gripper. Every other entry closes to 0, so its 0.002
+    # is exactly range[0] + 0.002; this mounting closes to the clamp's 22.24 mm, so the matching
+    # value is 24.24 mm. An earlier 0.023 sat just above the closed gap and DISAGREED with the
+    # planner: a 24.0 mm block reads 23.97 mm, this sensor reported it grasped, and the planner
+    # aborted the episode as an empty gripper. Consequence, stated plainly: objects between the
+    # 22.24 mm closed gap and 24.24 mm read as not grasped on both checks, so the usable window of
+    # this mounting is ~24.3-38.4 mm, not the 22.24-38.42 mm the aperture clamp spans. (Measured
+    # on 50 g blocks, 22.5 and 23 mm ones slip out of a lift anyway; 24 mm holds.) Lowering the
+    # clamp instead would be wrong: at range[0] = 20.24 mm an empty close reads 22.24 mm, not
+    # below 22.24, and the planner would never notice an empty gripper.
+    aperture_threshold: 0.02424
+  release_rule:
+    required_contact_groups: []
+    forbidden_contact_groups: []
+    minimum_contact_count: 0
+    aperture_threshold: null
+# Both joint ranges EXCLUDE zero (left ends at -1e-5, right starts at +1e-5), so a [0, 0] rest pose
+# would be out of range on both before the sim takes a step. These are the closed limits
+# themselves -- which for this mounting means a 22.24 mm pad gap, not a shut jaw.
+initial_qpos:
+- -1.0e-05
+- 1.0e-05
+sensors:
+- kind: frame_pose
+  uuid: tcp_pose
+  frame:
+    kind: site
+    name:
+      name: gripper/planner_grasp_site
+      absolute: false
+  relative_to_group: base
+  output_format: xyz_quaternion_wxyz
+model_operations:
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/gripper_body
+    absolute: false
+  name:
+    name: gripper/planner_grasp_site
+    absolute: false
+  # the vendor's own `grasp_site` (upstream's `end_effector`, renamed in the vendor file), read
+  # from the MJCF rather than retyped: upstream places it "in the centre at the tip of the
+  # grippers". Identity orientation is already the catalog convention -- gripper_body's +z runs out
+  # through the fingers and the slides travel along y -- so approach +z and closing +y hold with no
+  # rotation.
+  position:
+  - 0.0
+  - 0.0
+  - 0.0811
+  quaternion_wxyz:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 0.0
+  xyaxes: null
+  group: 4
+  rgba:
+  - 0.0
+  - 1.0
+  - 1.0
+  - 1.0
+- kind: add_site
+  scope: robot_model
+  parent_body:
+    name: gripper/gripper_body
+    absolute: false
+  name:
+    name: gripper/tcp_frame
+    absolute: false
+  # The canonical TCP (constants.TCP_SITE), the second add_site every entry carries; without it the
+  # WODS conversion's Kinematics asserts on this family. MEASURED on the grafted model the way
+  # test_tcp_frame_sits_at_the_closed_pad_midpoint measures it: the actuator driven to its closed
+  # end, the midpoint of the two tip boxes' distal faces is (0, 0.00001, 0.0811) in gripper_body,
+  # i.e. the vendor's end-effector point -- the tips end 0.0811 out, and the wide mounting's closed
+  # gap is symmetric about y = 0. GL-style: z points back into the wrist (-approach), x toward the
+  # pad that is image-RIGHT in the wrist camera. The camera's image-right axis, rotated into the
+  # grasp frame, is exactly +y, and +y is the right finger, so x = +y, y = z cross x = +x_body;
+  # that frame is the quaternion below (checked against quat_to_mat).
+  position:
+  - 0.0
+  - 0.0
+  - 0.0811
+  quaternion_wxyz:
+  - 0.0
+  - 0.7071068
+  - 0.7071068
+  - 0.0
+  xyaxes: null
+  group: 4
+  rgba:
+  - 1.0
+  - 0.0
+  - 0.0
+  - 1.0
+wrist_camera:
+  # The deployed robot's POLICY VIEW, not the bare sensor. The real rig carries an Intel RealSense
+  # D405 on a bracket at the flange, beside the housing, lenses down the fingers, sensor rotated 90
+  # deg; lite6-deploy reprojects each of its frames to a 256 px square pinhole, 48.00 deg, principal
+  # point at the centre, turned 19.72 deg toward the fingers so the jaws stand along its bottom
+  # (lite6-deploy docs/calibration.md). Pose and axes below are that view's, from its calibration on
+  # the robot (optical_in_parent: 111 frames, 0.30 px rms), made left-right symmetric -- centred on
+  # the gripper's y = 0 plane, image right along +y, no yaw or roll -- which drops the calibration's
+  # 0.63 mm, 0.57 deg yaw and 0.37 deg roll (its own uncertainty is 1.4 px, 0.9 mm) and moves the
+  # view up to 0.8 px at the fingers, 2.8 px at 60 cm; written in the grasp frame
+  # (planner_grasp_site: identity rotation, 81.1 mm out along z) as a MuJoCo camera (x right, y up,
+  # looking along -z); fovy is the view's field. Rendered at any resolution and centre-cropped
+  # square (virtual_vla's wods crop_resize), it is that symmetric view. GenericOmniPurposeCameraSystem
+  # renders every wrist camera at its own fovy (the builder gives it the camera), jittered around it
+  # (fov +- 8, pose): on average, this view. aim is its 31.7 deg tilt off the approach (the D405's
+  # 12.0 plus the view's 19.72).
+  #
+  # Until 2026-09-28 this entry was the bare D405, fitted by silhouette match to a photo of the
+  # mount: 66.6 mm lateral, 25.2 mm below the flange plane, axis 13.6 deg inward, fovy 87 (480x848
+  # portrait). The calibrated camera sits 4.5 mm and 1.65 deg from that fit.
+  source: 'lite6-deploy wrist view (48.00 deg square, turned 19.72 deg toward the fingers), from its
+    calibration of the deployed D405 (2026-09-27), made left-right symmetric'
+  pos:
+  - 0.062274
+  - 0.0
+  - -0.05484
+  quat:
+  - 0.193325
+  - 0.680166
+  - 0.680166
+  - 0.193325
+  fovy: 48.0042
+  resolution:
+  - 256
+  - 256
+  aim: 0.8505

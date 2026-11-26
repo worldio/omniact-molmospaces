@@ -1,0 +1,227 @@
+# Executable bimanual I2RT YAM configuration for EmbodimentSpec schema version 1.
+
+schema_version: 1
+embodiment_id: i2rt_yam.bimanual.fixed
+embodiment_version: "20260223-spec1"
+
+robot_config:
+  namespace: robot_0/
+  model:
+    source: builtin
+    resource_key: i2rt_yam
+    resource_version: "20260223"
+    root_path: null
+    mjcf_path: bimanual_yam.xml
+    model_root_body: {name: bimanual_base, absolute: false}
+    pre_namespaced: false
+    prefix_names: true
+  initial_qpos:
+    left_arm: [0.0624, 0.0109, 0.1707, -0.5938, 0.411, 0.3401]
+    right_arm: [0.0006, 0.0147, 0.1669, -0.6407, 0.0746, 0.1516]
+    left_gripper: [0.03914, 0.0]
+    right_gripper: [0.04068, 0.0]
+  initial_qpos_noise: null
+  initial_qpos_limit_policy:
+    left_gripper: allow_out_of_range
+    right_gripper: allow_out_of_range
+  default_control_profile: default
+  control_profiles:
+    default:
+      controller_bindings:
+        left_arm: left_arm_position
+        right_arm: right_arm_position
+        left_gripper: left_gripper_position
+        right_gripper: right_gripper_position
+      actuator_overrides: {}
+  gravity_compensation:
+    enabled: true
+    root_body: {name: bimanual_base, absolute: false}
+    include_root: false
+    include_descendants: true
+  action_noise:
+    enabled: true
+    target_arm_groups: [left_arm, right_arm]
+    target_base_group: null
+    action_scale_factor: 0.1
+    rotation_noise_scale: 0.1
+    max_tcp_position_noise: 0.02
+    max_tcp_rotation_noise: 0.1
+    base_action_scale_factor: 0.1
+    max_base_position_noise: 0.02
+    max_base_rotation_noise: 0.05
+  placement:
+    reset_repositionable: true
+    runtime_mobility: fixed
+    footprint_xy: [0.3, 0.8]
+    platform_size_xyz: [0.3, 0.8, 0.7]
+    forward_offset: 0.0
+    forward_offset_step: 0.02
+
+robot:
+  model_operations:
+    - kind: add_mocap_body
+      scope: scene
+      name: {name: base, absolute: false}
+      parent_body: null
+      initial_pose:
+        position: [0.0, 0.0, 0.0]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      use_base_pose: true
+    - kind: add_material
+      scope: scene
+      name: {name: robot_base_material, absolute: false}
+      rgba: [0.3, 0.2, 0.1, 1.0]
+    - kind: add_geom
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      name: {name: robot_base_geom, absolute: false}
+      geom_type: box
+      size: [0.15, 0.4, 0.35]
+      position: [0.0, 0.0, 0.35]
+      material: {name: robot_base_material, absolute: false}
+      group: 0
+    - kind: attach_model
+      scope: scene
+      parent_body: {name: base, absolute: false}
+      child_root_body: {name: bimanual_base, absolute: false}
+      child_pose:
+        position: [0.0, 0.0, 0.7]
+        quaternion_wxyz: [1.0, 0.0, 0.0, 0.0]
+      apply_namespace: true
+  controllers:
+    left_arm_position: {kind: joint_position, move_group: left_arm}
+    right_arm_position: {kind: joint_position, move_group: right_arm}
+    left_gripper_position: {kind: joint_position, move_group: left_gripper}
+    right_gripper_position: {kind: joint_position, move_group: right_gripper}
+  kinematics:
+    kind: damped_least_squares
+    online_backend: numpy
+    batch_backend: sequential
+    # Generic manipulation currently selects the first (left) end effector.
+    optimizable_groups: [left_arm]
+    max_iterations: 100
+    convergence_tolerance: 0.001
+    success_tolerance: 0.0001
+    damping: 1.0e-12
+    integration_step: 1.0
+    online_max_iterations: 1000
+    online_success_tolerance: 0.0001
+  sensors:
+    - kind: frame_pose
+      uuid: tcp_pose_left
+      frame: {kind: site, name: {name: left_grasp_site, absolute: false}}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+    - kind: frame_pose
+      uuid: tcp_pose_right
+      frame: {kind: site, name: {name: right_grasp_site, absolute: false}}
+      relative_to_group: base
+      output_format: xyz_quaternion_wxyz
+
+robot_view:
+  base_group: base
+  runtime_name: bimanual_yam
+  move_groups:
+    base:
+      kind: mocap_base
+      role: base
+      side: center
+      body: {name: base, absolute: false}
+      runtime_mobile: false
+    left_arm:
+      kind: joint
+      role: arm
+      side: left
+      parent_group: base
+      root_body: {name: left_arm, absolute: false}
+      joint_names: [{name: left_joint1}, {name: left_joint2}, {name: left_joint3}, {name: left_joint4}, {name: left_joint5}, {name: left_joint6}]
+      actuator_names: [{name: left_joint1}, {name: left_joint2}, {name: left_joint3}, {name: left_joint4}, {name: left_joint5}, {name: left_joint6}]
+      leaf_frame: {kind: site, name: {name: left_grasp_site}}
+    right_arm:
+      kind: joint
+      role: arm
+      side: right
+      parent_group: base
+      root_body: {name: right_arm, absolute: false}
+      joint_names: [{name: right_joint1}, {name: right_joint2}, {name: right_joint3}, {name: right_joint4}, {name: right_joint5}, {name: right_joint6}]
+      actuator_names: [{name: right_joint1}, {name: right_joint2}, {name: right_joint3}, {name: right_joint4}, {name: right_joint5}, {name: right_joint6}]
+      leaf_frame: {kind: site, name: {name: right_grasp_site}}
+    left_gripper:
+      kind: gripper
+      role: tool
+      side: left
+      parent_group: base
+      root_body: {name: left_link_6}
+      joint_names: [{name: left_left_finger}, {name: left_right_finger}]
+      actuator_names: [{name: left_gripper}]
+      leaf_frame: {kind: site, name: {name: left_grasp_site}}
+      open_command: [0.041]
+      closed_command: [0.0]
+      aperture:
+        kind: joint_expression
+        terms:
+          - {joint: {name: left_left_finger}, coefficient: 1.0, transform: absolute}
+          - {joint: {name: left_right_finger}, coefficient: 1.0, transform: absolute}
+        clamp: [0.0, 0.075]
+    right_gripper:
+      kind: gripper
+      role: tool
+      side: right
+      parent_group: base
+      root_body: {name: right_link_6}
+      joint_names: [{name: right_left_finger}, {name: right_right_finger}]
+      actuator_names: [{name: right_gripper}]
+      leaf_frame: {kind: site, name: {name: right_grasp_site}}
+      open_command: [0.041]
+      closed_command: [0.0]
+      aperture:
+        kind: joint_expression
+        terms:
+          - {joint: {name: right_left_finger}, coefficient: 1.0, transform: absolute}
+          - {joint: {name: right_right_finger}, coefficient: 1.0, transform: absolute}
+        clamp: [0.0, 0.075]
+  end_effectors:
+    left:
+      arm_group: left_arm
+      tool_group: left_gripper
+      tcp_frame: {kind: site, name: {name: left_grasp_site}}
+      grasp_frame: {kind: site, name: {name: left_grasp_site}}
+      grasp_profile_id: yam_left_parallel_jaw_v1
+    right:
+      arm_group: right_arm
+      tool_group: right_gripper
+      tcp_frame: {kind: site, name: {name: right_grasp_site}}
+      grasp_frame: {kind: site, name: {name: right_grasp_site}}
+      grasp_profile_id: yam_right_parallel_jaw_v1
+
+grasp_profiles:
+  yam_left_parallel_jaw_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame: {kind: site, name: {name: left_grasp_site}}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries: [{position: [0.0, 0.0, 0.0], quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]}]
+    open_configuration: [0.041]
+    closed_configuration: [0.0]
+    contact_groups:
+      left_finger: {geom_names: [], include_descendants_of: [{name: left_link_left_finger}]}
+      right_finger: {geom_names: [], include_descendants_of: [{name: left_link_right_finger}]}
+      palm: {geom_names: [], body_names: [{name: left_link_6}]}
+    grasp_rule: {required_contact_groups: [left_finger, right_finger], forbidden_contact_groups: [palm], minimum_contact_count: 1, aperture_threshold: 0.002}
+    release_rule: {required_contact_groups: [], minimum_contact_count: 0}
+  yam_right_parallel_jaw_v1:
+    profile_version: "1"
+    tool_type: parallel_jaw
+    grasp_frame: {kind: site, name: {name: right_grasp_site}}
+    approach_axis_in_grasp_frame: [0.0, 0.0, 1.0]
+    closing_axis_in_grasp_frame: [0.0, 1.0, 0.0]
+    symmetries: [{position: [0.0, 0.0, 0.0], quaternion_wxyz: [0.0, 0.0, 0.0, 1.0]}]
+    open_configuration: [0.041]
+    closed_configuration: [0.0]
+    contact_groups:
+      left_finger: {geom_names: [], include_descendants_of: [{name: right_link_left_finger}]}
+      right_finger: {geom_names: [], include_descendants_of: [{name: right_link_right_finger}]}
+      palm: {geom_names: [], body_names: [{name: right_link_6}]}
+    grasp_rule: {required_contact_groups: [left_finger, right_finger], forbidden_contact_groups: [palm], minimum_contact_count: 1, aperture_threshold: 0.002}
+    release_rule: {required_contact_groups: [], minimum_contact_count: 0}

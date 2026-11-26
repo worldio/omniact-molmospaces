@@ -1,0 +1,10 @@
+# RBY1M shares RBY1 semantics and overrides its versioned model resource.
+extends: rby1.yaml
+
+embodiment_id: rby1m.dual.se2
+embodiment_version: "20251224-spec1"
+
+robot_config:
+  model:
+    resource_key: rby1m
+    mjcf_path: rby1_v1.2_site_control.xml
